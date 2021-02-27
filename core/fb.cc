@@ -1,9 +1,12 @@
 // FrameBuffer implementation
 #include <cstdint>
+#include <cstring>
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 
 #include <string>
 #include <iostream>
@@ -20,7 +23,9 @@ struct Rect {
 class FrameBuffer: public Rect {
     int device;
     std::string path;
-    uint16_t* data;
+
+    int frame_length;
+    uint8_t* mem_map;
 
     fb_var_screeninfo vinfo;
     fb_fix_screeninfo finfo;
@@ -43,11 +48,14 @@ public:
             throw "FrameBuffer: expected 16 bits per pixel, but got " + std::to_string( fb.vinfo.bits_per_pixel) + "\n";
         */
 
-       fb.finfo = fb.get_finfo();
+        fb.finfo = fb.get_finfo();
        
 
-        // TODO map the memory
-
+        // map the memory
+        fb.frame_length = fb.finfo.line_length * fb.vinfo.yres;
+        fb.mem_map = (uint8_t*) mmap( 0, fb.frame_length, PROT_READ | PROT_WRITE, MAP_SHARED, fb.device, (off_t) 0);
+        if( fb.mem_map == nullptr)
+            throw "FrameBuffer: unable to mmap frame '" + fb.path + "'\n";
 
         return fb;
     }
@@ -59,7 +67,8 @@ public:
              << std::endl;
     }
 
-    //
+    // Not sure we should implement this
+    // kernel should take of that => and we should not copy that object
     ~FrameBuffer() {
         ::close( device);
     }
@@ -116,6 +125,60 @@ public:
         return finfo;
     }
 
+    // basic drawing
+    void fill( uint8_t color ) {
+        std::memset( mem_map, color, frame_length );
+    }
+
+    uint32_t full_refresh(
+        waveform_mode waveform,
+        temperature: common::display_temp,
+        dither_mode: common::dither_mode,
+        quant_bit: i32,
+        bool wait_completion = true
+    ) const {
+        let screen = common::mxcfb_rect {
+            top: 0,
+            left: 0,
+            height: self.var_screen_info.yres,
+            width: self.var_screen_info.xres,
+        };
+        let marker = self.marker.fetch_add(1, Ordering::Relaxed);
+        mxcfb_update_data whole{
+            update_mode: common::update_mode::UPDATE_MODE_FULL as u32,
+            update_marker: marker as u32,
+            waveform,
+            temp: temperature as i32,
+            flags: 0,
+            quant_bit,
+            dither_mode: dither_mode as i32,
+            update_region: screen,
+            ..Default::default()
+        };
+
+        if( ioctl( device, MXCFB_SEND_UPDATE, &whole))
+            throw "FrameBuffer: failed to MXCFB_SEND_UPDATE\n";
+
+        if( wait_completion) {
+            let mut markerdata = mxcfb_update_marker_data {
+                update_marker: whole.update_marker,
+                collision_test: 0,
+            };
+            unsafe {
+                if libc::ioctl(
+                    self.device.as_raw_fd(),
+                    common::MXCFB_WAIT_FOR_UPDATE_COMPLETE,
+                    &mut markerdata,
+                ) < 0
+                {
+                    warn!("WAIT_FOR_UPDATE_COMPLETE failed after a full_refresh(..)");
+                }
+            }
+        }
+        
+        return whole.update_marker
+    }
+
 };
 
 
@@ -129,6 +192,16 @@ try {
     auto fb = FrameBuffer::open();
     fb.to_s();
 
+    fb.fill( 0);
+    fb.full_refresh();
+
+    sleep( 4);
+
+    fb.fill( 255);
+    fb.full_refresh();
+ 
+
+    cerr << "done" << endl;
 }
 catch(const char* msg) {
     cerr << "ERROR : " << msg << endl;

@@ -17,10 +17,8 @@ Provide an alternative to xochitl
 
 # Plan
 ## Basic
-- compile hello world (console print)
++ compile hello world (console print)
 * be able to remote debug with gdb
-
-
 ## Start
 - basic drawing (libremarakble demo) in c++
 - framebuffer basics - https://discord.com/channels/385916768696139794/771436565757952070/813914877717381170
