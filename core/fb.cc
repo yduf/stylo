@@ -1,4 +1,5 @@
 // FrameBuffer implementation
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 
@@ -10,6 +11,9 @@
 
 #include <string>
 #include <iostream>
+
+#include "mxcfb.h"
+
 
 struct Point {
     int x, y;
@@ -53,7 +57,7 @@ public:
 
         // map the memory
         fb.frame_length = fb.finfo.line_length * fb.vinfo.yres;
-        fb.mem_map = (uint8_t*) mmap( 0, fb.frame_length, PROT_READ | PROT_WRITE, MAP_SHARED, fb.device, (off_t) 0);
+        fb.mem_map = (uint8_t*) mmap( 0, fb.frame_length, PROT_READ | PROT_WRITE, MAP_SHARED, fb.device, 0);
         if( fb.mem_map == nullptr)
             throw "FrameBuffer: unable to mmap frame '" + fb.path + "'\n";
 
@@ -62,22 +66,24 @@ public:
 
     void to_s() const {
         std::cerr << "opened '" << path << "' - " << vinfo.xres << "x" << vinfo.yres 
-             << ", depth: " << vinfo.bits_per_pixel << "bits"
-             << ", row: "   << finfo.line_length    << "bytes"
+             << ", depth: " << vinfo.bits_per_pixel << " bits"
+             << ", row: "   << finfo.line_length    << " bytes"
+             << ", addr: " << (void*) mem_map << ", size:" << frame_length << " bytes"
              << std::endl;
     }
 
     // Not sure we should implement this
     // kernel should take of that => and we should not copy that object
     ~FrameBuffer() {
-        ::close( device);
+        std::cerr << "closed" << std::endl;
+       // ::close( device);
     }
 
     // raw info
     fb_var_screeninfo raw_vinfo() const {
         // Fetch the size of the display.
         fb_var_screeninfo screenInfo;
-        if( ioctl(device, FBIOGET_VSCREENINFO, &screenInfo) != 0)
+        if( ioctl(device, FBIOGET_VSCREENINFO, &screenInfo))
             throw "FrameBuffer: could not FBIOGET_VSCREENFINO '" + path + "'.\n";
 
         return screenInfo;
@@ -85,7 +91,7 @@ public:
 
     // update info
     void raw_vinfo( const fb_var_screeninfo& screenInfo) const {
-        if( ioctl(device, FBIOPUT_VSCREENINFO, &screenInfo) != 0)
+        if( ioctl(device, FBIOPUT_VSCREENINFO, &screenInfo))
             throw "FrameBuffer: could not FBIOPUT_VSCREENINFO '" + path + "'.\n";
     }
 
@@ -130,55 +136,40 @@ public:
         std::memset( mem_map, color, frame_length );
     }
 
-    uint32_t full_refresh(
-        waveform_mode waveform,
-        temperature: common::display_temp,
-        dither_mode: common::dither_mode,
-        quant_bit: i32,
-        bool wait_completion = true
-    ) const {
-        let screen = common::mxcfb_rect {
-            top: 0,
-            left: 0,
-            height: self.var_screen_info.yres,
-            width: self.var_screen_info.xres,
-        };
-        let marker = self.marker.fetch_add(1, Ordering::Relaxed);
+
+    uint32_t full_refresh() const {
+
+        bool wait_completion = true;
+
+        static int marker = 0;
+
         mxcfb_update_data whole{
-            update_mode: common::update_mode::UPDATE_MODE_FULL as u32,
-            update_marker: marker as u32,
-            waveform,
-            temp: temperature as i32,
-            flags: 0,
-            quant_bit,
-            dither_mode: dither_mode as i32,
-            update_region: screen,
-            ..Default::default()
+            mxcfb_rect{0,0,500,500},
+            6, //0,                    //waveform,
+            0, // UPDATE_MODE_FULL,       // mode,
+            0x2a, // marker,
+            0x0018, //TEMP_USE_AMBIENT, // temp,
+            0,  // flags
+            0, //dither_mode,
+            0, // quant_bit,
+            mxcfb_alt_buffer_data{}
         };
 
-        if( ioctl( device, MXCFB_SEND_UPDATE, &whole))
-            throw "FrameBuffer: failed to MXCFB_SEND_UPDATE\n";
+/*
+        if( msync( mem_map, frame_length, MS_SYNC))
+            throw "FrameBuffer: failed to msync " + std::to_string(errno) 
+                    + " (addr= " + std::to_string((int)mem_map)  
+                    + ", PAGESIZE=" + std::to_string(getpagesize()) 
+                    + ", length = " + std::to_string(frame_length)  
+                    +") \n";
+*/
+        int status;
+        if( status = ioctl( device, MXCFB_SEND_UPDATE, &whole))
+            throw "FrameBuffer: failed to MXCFB_SEND_UPDATE: " + std::to_string(status) 
+                    + " (errno= " + std::to_string(errno) + ") \n";
 
-        if( wait_completion) {
-            let mut markerdata = mxcfb_update_marker_data {
-                update_marker: whole.update_marker,
-                collision_test: 0,
-            };
-            unsafe {
-                if libc::ioctl(
-                    self.device.as_raw_fd(),
-                    common::MXCFB_WAIT_FOR_UPDATE_COMPLETE,
-                    &mut markerdata,
-                ) < 0
-                {
-                    warn!("WAIT_FOR_UPDATE_COMPLETE failed after a full_refresh(..)");
-                }
-            }
-        }
-        
-        return whole.update_marker
+    return marker;
     }
-
 };
 
 
@@ -192,14 +183,13 @@ try {
     auto fb = FrameBuffer::open();
     fb.to_s();
 
-    fb.fill( 0);
+    fb.fill( 0x00);
     fb.full_refresh();
 
     sleep( 4);
 
-    fb.fill( 255);
+    fb.fill( 0xFF);
     fb.full_refresh();
- 
 
     cerr << "done" << endl;
 }

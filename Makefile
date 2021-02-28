@@ -1,5 +1,6 @@
 CXX = arm-linux-gnueabihf-g++
-CFLAGS ?= -fPIC -g -static -std=gnu++17 -Werror=return-type
+# DO NOT USE -static => it prevent rm2fb-client patching
+CFLAGS ?= -fPIC -g -std=gnu++17 -Werror=return-type
 
 DEVICE_IP ?= '10.11.99.1'
 DEVICE_HOST ?= root@$(DEVICE_IP)
