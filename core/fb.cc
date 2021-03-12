@@ -22,9 +22,18 @@ struct Point {
 struct Rect {
     Point topLeft;
     Point bottomRight;
+
+    int height() const {
+        return bottomRight.y - topLeft.y;
+    }
+
+    int width() const {
+        return bottomRight.x - topLeft.x;
+    }
 };
 
 class FrameBuffer: public Rect {
+public:
     int device;
     std::string path;
 
@@ -47,10 +56,10 @@ public:
         fb.vinfo = fb.get_vinfo();
         fb.bottomRight = Point{ (int) fb.vinfo.xres, (int) fb.vinfo.yres};
 
-        /*
         if( fb.vinfo.bits_per_pixel != 16)
-            throw "FrameBuffer: expected 16 bits per pixel, but got " + std::to_string( fb.vinfo.bits_per_pixel) + "\n";
-        */
+            throw "FrameBuffer: expected 16 bits per pixel, but got " + std::to_string( fb.vinfo.bits_per_pixel) + "\n"
+                   + " If running on rM2, you should use rmf2b\n";
+
 
         fb.finfo = fb.get_finfo();
        
@@ -96,8 +105,8 @@ public:
     }
 
     // update vinfo
-    // on rm2/rm2buffer raw output: opened '/dev/fb0' - 260x1408, depth: 32bits
-    //                  once fixed: opened '/dev/fb0' - 1404x1872, depth: 32bits
+    // on rm2/rm2buffer raw output: opened '/dev/fb0' -  260x1408, depth: 32bits
+    // using rmfb2      once fixed: opened '/dev/fb0' - 1404x1872, depth: 16 bits, row: 2808 bytes, addr: 0x752f5000, size:5256576 bytes
     // taken from libremarkable rust code
     fb_var_screeninfo get_vinfo() const {
         auto var_screen_info = raw_vinfo();
@@ -144,7 +153,7 @@ public:
         static int marker = 0;
 
         mxcfb_update_data whole{
-            mxcfb_rect{0,0,500,500},
+            mxcfb_rect{0,0,vinfo.xres,vinfo.yres},
             6, //0,                    //waveform,
             0, // UPDATE_MODE_FULL,       // mode,
             0x2a, // marker,
@@ -155,14 +164,6 @@ public:
             mxcfb_alt_buffer_data{}
         };
 
-/*
-        if( msync( mem_map, frame_length, MS_SYNC))
-            throw "FrameBuffer: failed to msync " + std::to_string(errno) 
-                    + " (addr= " + std::to_string((int)mem_map)  
-                    + ", PAGESIZE=" + std::to_string(getpagesize()) 
-                    + ", length = " + std::to_string(frame_length)  
-                    +") \n";
-*/
         int status;
         if( status = ioctl( device, MXCFB_SEND_UPDATE, &whole))
             throw "FrameBuffer: failed to MXCFB_SEND_UPDATE: " + std::to_string(status) 
@@ -171,32 +172,3 @@ public:
     return marker;
     }
 };
-
-
-#include <iostream>
-
-using namespace std;
-
-int main(int argc,char** argv) {
-try {
-    cerr << "Hello World" << endl;
-    auto fb = FrameBuffer::open();
-    fb.to_s();
-
-    fb.fill( 0x00);
-    fb.full_refresh();
-
-    sleep( 4);
-
-    fb.fill( 0xFF);
-    fb.full_refresh();
-
-    cerr << "done" << endl;
-}
-catch(const char* msg) {
-    cerr << "ERROR : " << msg << endl;
-}
-catch(const string& msg) {
-    cerr << "ERROR : " << msg << endl;
-}
-}
