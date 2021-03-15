@@ -49,14 +49,16 @@ struct Draw {
     {
     }
 
-    void draw_at( int x, int y) {
+    Rect draw_at( int x, int y) {
         cairo_arc(cr, x, y, 10.0, 0.0, 2 * M_PI);
         cairo_fill_preserve(cr);
-        cairo_stroke(cr);   
+        cairo_stroke(cr);
+
+        return Rect{ Point{x,y}, Point{x+10,y+10} };
     }
 
-    void erase_at( int x, int y ) {
-
+    Rect erase_at( int x, int y ) {
+        return Rect{ Point{x,y}, Point{x+10,y+10} };
     }
 };
 
@@ -74,16 +76,19 @@ try {
     const double r = 500;
     double x = 0, y = 0;
 
-    for( double a=0; a < 2*3.14; a += 1*3.14/180) {
-        dr.erase_at( x, y);        // erase previous
+    for( double a=0; a < 2*3.14; a += 1*3.14/180) 
+    {
+        //int a = 0;
+        auto erase_rect = dr.erase_at( x, y);        // erase previous
 
         // move
         double x  = r*cos(a) + center.x;
         double y  = r*sin(a) + center.y;
 
-        dr.draw_at( x, y);         // redraw
+        auto draw_rect = dr.draw_at( x, y);         // redraw
 
-        fb.full_refresh();
+        // fast refresh
+        fb.refresh( draw_rect, erase_rect);
     }
 
 

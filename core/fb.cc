@@ -145,13 +145,8 @@ public:
         std::memset( mem_map, color, frame_length );
     }
 
-
-    uint32_t full_refresh() const {
-
-        bool wait_completion = true;
-
-        static int marker = 0;
-
+    // full refresh
+    void refresh() const {
         mxcfb_update_data whole{
             mxcfb_rect{0,0,vinfo.xres,vinfo.yres},
             6, //0,                    //waveform,
@@ -168,7 +163,31 @@ public:
         if( status = ioctl( device, MXCFB_SEND_UPDATE, &whole))
             throw "FrameBuffer: failed to MXCFB_SEND_UPDATE: " + std::to_string(status) 
                     + " (errno= " + std::to_string(errno) + ") \n";
+    }
 
-    return marker;
+    // fast refresh of selected area
+    void refresh( const Rect& r) const {
+        mxcfb_update_data whole{
+            mxcfb_rect{ r.topLeft.y, r.topLeft.x, r.width(), r.height()},
+            6, //0,                    //waveform,
+            0, // UPDATE_MODE_FULL,       // mode,
+            0x2a, // marker,
+            0x0018, //TEMP_USE_AMBIENT, // temp,
+            0,  // flags
+            0, //dither_mode,
+            0, // quant_bit,
+            mxcfb_alt_buffer_data{}
+        };
+
+        int status;
+        if( status = ioctl( device, MXCFB_SEND_UPDATE, &whole))
+            throw "FrameBuffer: failed to MXCFB_SEND_UPDATE: " + std::to_string(status) 
+                    + " (errno= " + std::to_string(errno) + ") \n";
+    }
+
+    // animation: fast refresh of selected areas
+    void refresh( const Rect& r1, const Rect& r2) {
+        refresh( r1);
+        refresh( r2);
     }
 };

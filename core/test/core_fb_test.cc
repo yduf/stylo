@@ -10,12 +10,12 @@ try {
     fb.to_s();
 
     fb.fill( 0x00);
-    fb.full_refresh();
+    fb.refresh();
 
     sleep( 4);
 
     fb.fill( 0xFF);
-    fb.full_refresh();
+    fb.refresh();
 
     cerr << "done" << endl;
 }
