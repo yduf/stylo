@@ -22,6 +22,7 @@ Provide an alternative to xochitl
 ## Start
 - basic drawing (libremarakble demo) in c++
 - framebuffer basics - https://discord.com/channels/385916768696139794/771436565757952070/813914877717381170
+- draw text
 
 ## Document
 - define a representation for document

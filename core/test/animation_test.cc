@@ -41,7 +41,8 @@ struct Draw {
         cairo_move_to(cr, 10, 10);
         cairo_line_to(cr, 1000, 1500);
 
-        cairo_stroke(cr);    
+        cairo_stroke(cr); 
+        fb.refresh();       // full refresh   
     }
 
     static

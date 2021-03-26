@@ -15,6 +15,7 @@ core:
 
 build: core
 	$(CXX)  $(CFLAGS) core/test/core_fb_test.cc   -o fb_test
+	$(CXX)  $(CFLAGS) core/test/input_test.cc     -o input_test
 	$(CXX)  $(CFLAGS) -I $(CAIRO)/src -I $(CAIROLIB)/src $(LDFLAGS) core/test/animation_test.cc -l cairo -o animation_test
 
 deploy-lib:
@@ -24,3 +25,9 @@ deploy-lib:
 deploy: build
 	scp ./animation_test $(DEVICE_HOST):
 	ssh $(DEVICE_HOST) 'LD_LIBRARY_PATH=$LD_LIBRARY_PATH:. /opt/bin/rm2fb-client ./animation_test'
+
+
+input_test: build
+	scp ./input_test $(DEVICE_HOST):
+	ssh $(DEVICE_HOST) './input_test'
+

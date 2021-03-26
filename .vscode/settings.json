@@ -52,6 +52,7 @@
         "random": "cpp",
         "string": "cpp",
         "bit": "cpp",
-        "cwctype": "cpp"
+        "cwctype": "cpp",
+        "deque": "cpp"
     }
 }
