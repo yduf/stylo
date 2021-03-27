@@ -2,9 +2,11 @@
 #include <unistd.h>
 
 #include <linux/input.h>
+#include <poll.h>
 
 #include <iostream>
 #include <array>
+#include <vector>
 
 using namespace std;
 
@@ -71,25 +73,23 @@ auto to_s( int value, const array<T,N>& label, const string& type) {
 }
 
 class Input {
-    vector<int> device;
-    int pen;
+    vector<pollfd> devices;
 
 public:
-    Input( const char* pen_device = "/dev/input/event0" ) {
+    Input() {
 
         cerr << "scanning input devices" << endl;
         for(auto& p: fs::directory_iterator("/dev/input")) {
             if( !p.is_symlink() && p.is_character_file() ) {
-                int dev = ::open( p.path().c_str(), O_RDONLY);
+                int dev = ::open( p.path().c_str(), O_RDONLY | O_NONBLOCK );
 
                 std::cerr << p.path() << " " << id_by_capabilities(dev) << endl;
 
-                device.push_back( dev);
+                pollfd pol = { dev, POLLIN };
+                devices.push_back( pol);
             }
         }
         cerr << "end" << endl;
-
-        pen = ::open( pen_device, O_RDONLY);
 
         // define event name
         ev_type[EV_SYN] = "EV_SYN";
@@ -131,8 +131,52 @@ public:
 
 
         for(;;) {
+            int ret = poll( &devices[0], devices.size(), 10000 );
+            // Check if poll actually succeed
+            if ( ret == -1 ) {
+                // report error and abort
+                cerr << "poll failed" << endl;
+                break;
+            }
+            else if ( ret == 0 ) {
+                // timeout; no event detected
+                cerr << "poll timeout" << endl;
+                continue;
+            }
+            else {
+                // If we detect the event, zero it out so we can reuse the structure
+                for( int i = 0; i < devices.size(); ++i) {
+                    auto& pfd = devices[i];
+
+                    if( pfd.revents & POLLIN ) {  // input event on device
+                        pfd.revents = 0;
+                        cerr << "event on device " << i << endl;
+
+                        read_event( pfd.fd);
+                    }
+                }
+            }
+        }
+    }
+
+    void read_event( int fd) {
+        for(;;) {
             input_event event;
-            ::read( pen, &event, sizeof( event));
+            int nbytes = ::read( fd, &event, sizeof( event));
+            if( nbytes == sizeof(event)) {
+                // ok
+            }
+            else {
+                if (errno != EWOULDBLOCK) {
+                    /* real version needs to handle EINTR correctly */
+                        perror("read");
+                        exit(EXIT_FAILURE);
+                }
+
+                return;     // enf of buffer
+            }
+
+
             cerr << "event at " << event.time.tv_sec << ":" << event.time.tv_usec 
                     << " " << ::to_s( event.type, ev_type, "type");
 
@@ -157,7 +201,6 @@ public:
             cerr 
                     << " value=" << event.value 
                     << endl;
-
         }
     }
 };
