@@ -9,15 +9,16 @@ DEVICE_HOST ?= root@$(DEVICE_IP)
 CAIRO ?= /home/yves/DEV/reMarkable/cairo
 CAIROLIB ?= $(CAIRO)/build-arm
 
-LDFLAGS ?= -L $(CAIROLIB)/src/ -lstdc++fs
+LDFLAGS ?= -L $(CAIROLIB)/src/ 
 
 
 core:
 
 build: core
 	$(CXX)  $(CFLAGS) core/test/core_fb_test.cc   -o fb_test
-	$(CXX)  $(CFLAGS) core/test/input_test.cc     -o input_test $(LDFLAGS) 
-#	$(CXX)  $(CFLAGS) -I $(CAIRO)/src -I $(CAIROLIB)/src core/test/animation_test.cc -l cairo -o animation_test $(LDFLAGS) 
+	$(CXX)  $(CFLAGS) core/test/input_test.cc     -o input_test $(LDFLAGS)  -lstdc++fs 
+	$(CXX)  $(CFLAGS) -I $(CAIRO)/src -I $(CAIROLIB)/src core/test/animation_test.cc       -o animation_test $(LDFLAGS)  -lcairo 
+	$(CXX)  $(CFLAGS) -I $(CAIRO)/src -I $(CAIROLIB)/src core/test/simple_drawing_test.cc  -o simple_drawing_test $(LDFLAGS)  -lcairo -lstdc++fs
 
 deploy-lib:
 	scp $(CAIROLIB)/src/libcairo.so.2 $(DEVICE_HOST):
@@ -32,3 +33,7 @@ input_test: build
 	scp ./input_test $(DEVICE_HOST):
 	ssh -t $(DEVICE_HOST) './input_test'
 
+
+simple_drawing_test: build
+	scp ./simple_drawing_test $(DEVICE_HOST):
+	ssh -t $(DEVICE_HOST) 'LD_LIBRARY_PATH=$LD_LIBRARY_PATH:. /opt/bin/rm2fb-client ./simple_drawing_test'
