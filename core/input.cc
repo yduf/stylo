@@ -55,11 +55,22 @@ std::string id_by_capabilities(int fd) {
 }
 // end from https://github.com/rmkit-dev/rmkit/blob/master/src/rmkit/input/device_id.cpy
 
+// from rmkit
+
+#define WACOMWIDTH 15725.0
+#define WACOMHEIGHT 20967.0
+#define DISPLAYWIDTH 1404
+#define DISPLAYHEIGHT 1872.0
+#define WACOM_X_SCALAR (float(DISPLAYWIDTH) / float(WACOMWIDTH))
+#define WACOM_Y_SCALAR (float(DISPLAYHEIGHT) / float(WACOMHEIGHT))
+
+// end
 
 struct Event {
     timeval time;       // time of events
     int device;         // device from which the event is coming
     int tool;           // tool detected / or button
+    int touch;          // tool touching screen
 
     union {
         struct {
@@ -124,9 +135,10 @@ public:
 
     // convert linux input_event to Event
     // and call calback when Event is completly defined
+    // see https://www.kernel.org/doc/html/latest/input/event-codes.html
     template<class Fn>
     void readEvent( int fd, Fn callback) {
-        Event res;
+        static Event res = {};
 
         // let's assume we get a complete set of linux event in buffer each time
         for(;;) {
@@ -156,7 +168,7 @@ public:
                     break;                
 
                 case EV_KEY:       // hardware button + pen type
-                    // cerr << " " << ::to_s( event.code, btn_code, "code");
+                    BTN_event( res, event);
                     break;
 
                 case EV_ABS:        // pen + multitouch
@@ -166,12 +178,24 @@ public:
         }
     }
 
-#define WACOMWIDTH 15725.0
-#define WACOMHEIGHT 20967.0
-#define DISPLAYWIDTH 1404
-#define DISPLAYHEIGHT 1872.0
-#define WACOM_X_SCALAR (float(DISPLAYWIDTH) / float(WACOMWIDTH))
-#define WACOM_Y_SCALAR (float(DISPLAYHEIGHT) / float(WACOMHEIGHT))
+    //
+    void BTN_event( Event& res, const input_event& event ) {
+        switch( event.code ) {
+            default: 
+                cerr << "Unknown event code=" << event.code;
+                break; 
+
+            case BTN_TOUCH:
+                res.touch = event.value;
+
+            case BTN_TOOL_PEN:
+            case BTN_TOOL_RUBBER:
+                res.tool = event.code;
+                break;
+        }
+    }
+
+
 
     //
     void ABS_event( Event& res, const input_event& event ) {
@@ -180,8 +204,13 @@ public:
                 cerr << "Unknown event code=" << event.code;
                 break;
 
-            case ABS_X: res.pos.x = event.value * WACOM_X_SCALAR;    break;
-            case ABS_Y: res.pos.y = event.value * WACOM_Y_SCALAR;    break;
+            // align wacom device with screen buffer coordinates
+            case ABS_X: res.pos.y = DISPLAYHEIGHT - event.value * WACOM_Y_SCALAR;    break;
+            case ABS_Y: res.pos.x =                 event.value * WACOM_X_SCALAR;    break;
+            case ABS_DISTANCE:
+                cerr << "hovering ";
+                //res.tool = 0;
+                break;
 
         } 
     }

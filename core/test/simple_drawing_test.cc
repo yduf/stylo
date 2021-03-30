@@ -76,9 +76,10 @@ try {
     Draw dr( fb);
 
     input.loop([&](auto& event){ 
-        //cerr << "draw x=" << event.pos.x << ", y=" << event.pos.y << endl;
-        auto draw_rect = dr.draw_at( event.pos.x, event.pos.y);
-        fb.refresh( draw_rect);                         // fast refresh
+        if( event.touch) {
+            auto draw_rect = dr.draw_at( event.pos.x, event.pos.y);
+            fb.refresh( draw_rect);                         // fast refresh
+        }
     });
 
 

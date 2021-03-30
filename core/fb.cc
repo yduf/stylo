@@ -12,7 +12,7 @@
 #include <string>
 #include <iostream>
 
-// #include "mxcfb.h"
+// #include "mxcfb.h" // use libremarkable/legacy-c-impl/libremarkable/lib.h which is cleaner&complete
 
 
 struct Point {
@@ -264,8 +264,8 @@ public:
     void refresh() const {
         mxcfb_update_data whole{
             mxcfb_rect{0,0,vinfo.xres,vinfo.yres},
-            6, //0,                    //waveform,
-            0, // UPDATE_MODE_FULL,       // mode,
+            WAVEFORM_MODE_GL16_FAST,                    //waveform,
+            UPDATE_MODE_PARTIAL, // UPDATE_MODE_FULL,       // mode,
             0x2a, // marker,
             0x0018, //TEMP_USE_AMBIENT, // temp,
             0,  // flags
@@ -285,7 +285,7 @@ public:
         mxcfb_update_data whole{
             mxcfb_rect{ r.topLeft.y, r.topLeft.x, r.width(), r.height()},
             WAVEFORM_MODE_DU,                    //waveform,
-            0, // UPDATE_MODE_FULL,       // mode,
+            UPDATE_MODE_PARTIAL, // UPDATE_MODE_FULL,       // mode,
             0x2a, // marker,
             0x0018, //TEMP_USE_AMBIENT, // temp,
             0,  // flags
