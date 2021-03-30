@@ -17,12 +17,16 @@ Provide an alternative to xochitl
 
 # Plan
 ## Basic
+Done:
 + compile hello world (console print)
-* be able to remote debug with gdb
-## Start
-- basic drawing (libremarakble demo) in c++
-- framebuffer basics - https://discord.com/channels/385916768696139794/771436565757952070/813914877717381170
++ basic drawing (libremarakble demo) in c++
++ framebuffer basics - https://discord.com/channels/385916768696139794/771436565757952070/813914877717381170
++ input basic
++ simple sketch drawing => follow pen / draws
+
+Left to do:
 - draw text
+* be able to remote debug with gdb
 
 ## Document
 - define a representation for document

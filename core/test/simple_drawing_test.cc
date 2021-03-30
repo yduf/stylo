@@ -80,6 +80,12 @@ try {
             auto draw_rect = dr.draw_at( event.pos.x, event.pos.y);
             fb.refresh( draw_rect);                         // fast refresh
         }
+
+        switch( event.key) {
+            case KEY_POWER:
+                cerr << "leaving" << endl;
+                exit(0);
+        }
     });
 
 

@@ -69,7 +69,11 @@ std::string id_by_capabilities(int fd) {
 struct Event {
     timeval time;       // time of events
     int device;         // device from which the event is coming
-    int tool;           // tool detected / or button
+    union {             // tool detected / or button
+        int tool;           
+        int key;
+    };
+
     int touch;          // tool touching screen
 
     union {
@@ -188,6 +192,7 @@ public:
             case BTN_TOUCH:
                 res.touch = event.value;
 
+            case KEY_POWER:
             case BTN_TOOL_PEN:
             case BTN_TOOL_RUBBER:
                 res.tool = event.code;
